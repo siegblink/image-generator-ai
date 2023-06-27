@@ -1,15 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { ColorRing } from 'react-loader-spinner';
+
+type Inference = {
+  id: string;
+  images: Array<{
+    id: string;
+    uri: string;
+  }>;
+};
 
 export default function Home() {
+  const [inferences, setInferences] = useState<Array<Inference>>([]);
   const [generatedImage, setGeneratedImage] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
   const [prompt, setPrompt] = useState<string>('');
 
   async function generateImage() {
     if (!prompt.length) {
       return;
     }
+
+    setLoading(true);
 
     const response = await fetch('/api/generate', {
       method: 'POST',
@@ -24,6 +37,7 @@ export default function Home() {
 
     if (data.error) {
       window.alert(`Error: ${data.error} ${data.message}`);
+      setLoading(false);
       return;
     }
 
@@ -31,7 +45,26 @@ export default function Home() {
     // Since we only generate 1 image, then get the URI of the first image
     const uri = data.images[0].uri;
     setGeneratedImage(uri);
+    fetchImages();
+    setLoading(false);
   }
+
+  async function fetchImages() {
+    const response = await fetch('/api/showcase', { method: 'GET' });
+    const { data } = await response.json();
+
+    if (data.error) {
+      window.alert(`Error: ${data.error} ${data.message}`);
+      return;
+    }
+
+    setInferences(data);
+    console.info(data);
+  }
+
+  useEffect(() => {
+    fetchImages();
+  }, []);
 
   return (
     <main className='flex flex-col max-w-xl mx-auto items-center justify-center bg-black mt-10'>
@@ -48,6 +81,7 @@ export default function Home() {
             name='prompt'
             placeholder='Enter your prompt here'
             className='rounded-l-lg py-3 px-4 w-full text-gray-800 focus:outline-none'
+            disabled={loading}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
@@ -55,6 +89,7 @@ export default function Home() {
           <button
             className='text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:bg-gradient-to-l focus:ring-4 focus:outline-none focus:ring-purple-200 rounded-r-lg py-3 px-4 ml-1 font-semibold'
             onClick={generateImage}
+            disabled={loading}
           >
             Generate
           </button>
@@ -63,13 +98,34 @@ export default function Home() {
 
       {/* Image */}
       <section className='w-full mt-8'>
-        {!generatedImage ? (
+        {loading ? (
+          <div className='flex items-center justify-center border-2 border-dashed border-gray-500 rounded-md w-full p-10'>
+            <div className='flex flex-col'>
+              <ColorRing
+                visible={true}
+                height='80'
+                width='80'
+                ariaLabel='blocks-loading'
+                wrapperClass='blocks-wrapper'
+                wrapperStyle={{}}
+                colors={['#b8c480', '#b2a3b5', '#f4442e', '#51e5ff', '#429ea6']}
+              />
+              <div className='mt-2 text-md font-semibold text-gray-300'>
+                Generating...
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {!loading && !generatedImage ? (
           <div className='flex items-center justify-center border-4 border-dashed border-gray-500 rounded-md w-full p-10'>
             <div className='text-md text-gray-600'>
               Image will be generated here
             </div>
           </div>
-        ) : (
+        ) : null}
+
+        {!loading && generatedImage ? (
           <div className='flex items-center justify-center'>
             <img
               src={generatedImage}
@@ -77,7 +133,31 @@ export default function Home() {
               className='w-full rounded-lg hover:scale-105 duration-300'
             />
           </div>
-        )}
+        ) : null}
+      </section>
+
+      {/* Showcase */}
+      <section className='mt-16 max-w-full'>
+        <h1 className='text-xl font-semibold mb-5'>Community Showcase</h1>
+
+        <div className='grid grid-cols-2 gap-4 mt-4'>
+          {inferences.length ? (
+            inferences
+              .slice(0)
+              .reverse()
+              .map(({ id, images }) => {
+                return (
+                  <div key={id}>
+                    <img src={images[0].uri} alt={id} />
+                  </div>
+                );
+              })
+          ) : (
+            <div className='flex items-center justify-center text-md font-semibold text-gray-300'>
+              No images generated for this model yet.
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );
