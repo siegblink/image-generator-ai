@@ -5,6 +5,7 @@ import { ColorRing } from 'react-loader-spinner';
 
 type Inference = {
   id: string;
+  prompt: string;
   images: Array<{
     id: string;
     uri: string;
@@ -14,6 +15,7 @@ type Inference = {
 export default function Home() {
   const [inferences, setInferences] = useState<Array<Inference>>([]);
   const [generatedImage, setGeneratedImage] = useState<string>('');
+  const [activeTooltip, setActiveTooltip] = useState<number>(-1);
   const [loading, setLoading] = useState<boolean>(false);
   const [prompt, setPrompt] = useState<string>('');
 
@@ -145,10 +147,25 @@ export default function Home() {
             inferences
               .slice(0)
               .reverse()
-              .map(({ id, images }) => {
+              .map(({ id, images, prompt }, index) => {
                 return (
-                  <div key={id}>
-                    <img src={images[0].uri} alt={id} />
+                  <div
+                    key={id}
+                    className='relative'
+                    onMouseLeave={() => setActiveTooltip(-1)}
+                    onMouseEnter={() => setActiveTooltip(index)}
+                  >
+                    <img
+                      alt={id}
+                      src={images[0].uri}
+                      className='object-cover w-full h-full rounded-md'
+                    />
+
+                    {activeTooltip === index ? (
+                      <div className='p-2 w-full absolute bottom-0 left-0 backdrop-blur-sm bg-black/60 text-white text-sm rounded-t-md z-10'>
+                        {prompt}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })
